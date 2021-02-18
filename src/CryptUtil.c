@@ -192,6 +192,9 @@ CryptGenerateKeyedHash(
 	}
     return TPM_RC_SUCCESS;
 }
+
+extern void TPM2_PrintBin(const unsigned char* buffer, unsigned int length);
+
 /* 10.2.6.3.4 CryptIsSchemeAnonymous() */
 /* This function is used to test a scheme to see if it is an anonymous scheme The only anonymous
    scheme is ECDAA. ECDAA can be used to do things like U-Prove. */
@@ -232,8 +235,19 @@ ParmDecryptSym(
 	    CryptKDFa(hash, key, CFB_KEY, nonceCaller, nonceTpm,
 		      keySizeInBits + (iv.t.size * 8), symParmString, NULL, FALSE);
 	    MemoryCopy(iv.t.buffer, &symParmString[keySize], iv.t.size);
+
+		printf("AES Dec Key %d, IV %d\n", keySize, iv.t.size);
+		TPM2_PrintBin(symParmString, keySize);
+		TPM2_PrintBin(&symParmString[keySize], iv.t.size);
+
+		printf("Cmd Enc: %d\n", dataSize);
+		TPM2_PrintBin(data, dataSize);
+
 	    CryptSymmetricDecrypt(data, symAlg, keySizeInBits, symParmString,
 				  &iv, TPM_ALG_CFB, dataSize, data);
+
+		printf("Cmd Plain: %d\n", dataSize);
+		TPM2_PrintBin(data, dataSize);
 	}
     return;
 }
@@ -265,8 +279,19 @@ ParmEncryptSym(
 	    CryptKDFa(hash, key, CFB_KEY, nonceTpm, nonceCaller,
 		      keySizeInBits + (iv.t.size * 8), symParmString, NULL, FALSE);
 	    MemoryCopy(iv.t.buffer, &symParmString[keySize], iv.t.size);
+
+		printf("AES Enc Key %d, IV %d\n", keySize, iv.t.size);
+		TPM2_PrintBin(symParmString, keySize);
+		TPM2_PrintBin(&symParmString[keySize], iv.t.size);
+
+		printf("Resp Plain: %d\n", dataSize);
+		TPM2_PrintBin(data, dataSize);
+
 	    CryptSymmetricEncrypt(data, symAlg, keySizeInBits, symParmString, &iv,
 				  TPM_ALG_CFB, dataSize, data);
+
+		printf("Resp Encrypted: %d\n", dataSize);
+		TPM2_PrintBin(data, dataSize);
 	}
     return;
 }
@@ -748,6 +773,7 @@ CryptSecretDecrypt(
 	}
     return result;
 }
+
 /* 10.2.6.6.5 CryptParameterEncryption() */
 /* This function does in-place encryption of a response parameter. */
 void
@@ -791,6 +817,17 @@ CryptParameterEncryption(
     // Compute encryption key by concatenating sessionKey with extra key
     MemoryCopy2B(&key.b, &session->sessionKey.b, sizeof(key.t.buffer));
     MemoryConcat2B(&key.b, &extraKey->b, sizeof(key.t.buffer));
+
+	printf("RespEnc %d\n", cipherSize);
+	printf("RespEnc Session Key %d\n", session->sessionKey.t.size);
+	TPM2_PrintBin(session->sessionKey.t.buffer, session->sessionKey.t.size);
+	printf("RespEnc Extra Key %d\n", extraKey->t.size);
+	TPM2_PrintBin(extraKey->t.buffer, extraKey->t.size);
+    printf("RespEnc Nonce caller %d\n", nonceCaller->size);
+    TPM2_PrintBin(nonceCaller->buffer, nonceCaller->size);
+    printf("RespEnc Nonce TPM %d\n", session->nonceTPM.t.size);
+    TPM2_PrintBin(session->nonceTPM.t.buffer, session->nonceTPM.t.size);
+
     if(session->symmetric.algorithm == TPM_ALG_XOR)
 	// XOR parameter encryption formulation:
 	//    XOR(parameter, hash, sessionAuth, nonceNewer, nonceOlder)
@@ -853,6 +890,17 @@ CryptParameterDecryption(
     // Compute decryption key by concatenating sessionAuth with extra input key
     MemoryCopy2B(&key.b, &session->sessionKey.b, sizeof(key.t.buffer));
     MemoryConcat2B(&key.b, &extraKey->b, sizeof(key.t.buffer));
+
+	printf("CmdDec %d\n", cipherSize);
+	printf("CmdDec Session Key %d\n", session->sessionKey.t.size);
+	TPM2_PrintBin(session->sessionKey.t.buffer, session->sessionKey.t.size);
+	printf("CmdDec Extra Key %d\n", extraKey->t.size);
+	TPM2_PrintBin(extraKey->t.buffer, extraKey->t.size);
+    printf("CmdDec Nonce caller %d\n", nonceCaller->size);
+    TPM2_PrintBin(nonceCaller->buffer, nonceCaller->size);
+    printf("CmdDec Nonce TPM %d\n", session->nonceTPM.t.size);
+    TPM2_PrintBin(session->nonceTPM.t.buffer, session->nonceTPM.t.size);
+
     if(session->symmetric.algorithm == TPM_ALG_XOR)
 	// XOR parameter decryption formulation:
 	//    XOR(parameter, hash, sessionAuth, nonceNewer, nonceOlder)

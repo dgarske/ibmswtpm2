@@ -590,6 +590,9 @@ GetRpHashPointer(
 	}
     return NULL;
 }
+
+extern void TPM2_PrintBin(const unsigned char* buffer, unsigned int length);
+
 /* 6.4.4.4 ComputeCpHash() */
 /* This function computes the cpHash as defined in Part 2 and described in Part 1. */
 static TPM2B_DIGEST *
@@ -614,16 +617,28 @@ ComputeCpHash(
 	{
 	    cpHash->t.size = CryptHashStart(&hashState, hashAlg);
 	    //  Add commandCode.
+        printf("cpHash: cmdcode size %d\n", (int)sizeof(TPM_CC));
+        TPM2_PrintBin((unsigned char*)&command->code, sizeof(TPM_CC));
 	    CryptDigestUpdateInt(&hashState, sizeof(TPM_CC), command->code);
 	    //  Add authNames for each of the handles.
-	    for(i = 0; i < command->handleNum; i++)
-		CryptDigestUpdate2B(&hashState, &EntityGetName(command->handles[i],
-							       &name)->b);
+	    for(i = 0; i < command->handleNum; i++) {
+			EntityGetName(command->handles[i], &name);
+
+			printf("Name %d: %d\n", i, name.t.size);
+    		TPM2_PrintBin(name.t.name, name.t.size);
+
+			CryptDigestUpdate2B(&hashState, &name.b);
+		}
 	    //  Add the parameters.
+		printf("cpHash: params size %d\n", command->parameterSize);
+        TPM2_PrintBin(command->parameterBuffer, command->parameterSize);
 	    CryptDigestUpdate(&hashState, command->parameterSize,
 			      command->parameterBuffer);
 	    //  Complete the hash.
 	    CryptHashEnd2B(&hashState, &cpHash->b);
+
+		printf("cpHash: cmd %x, size %d\n", command->code, cpHash->t.size);
+    	TPM2_PrintBin(cpHash->t.buffer, cpHash->t.size);
 	}
     return cpHash;
 }
@@ -813,13 +828,21 @@ ComputeCommandHMAC(
 	    hmac->t.size = 0;
 	    return hmac;
 	}
+
+	printf("HMAC Key %d\n", key.b.size);
+    TPM2_PrintBin(key.b.buffer, key.b.size);
+
     // Start HMAC
     hmac->t.size = CryptHmacStart2B(&hmacState, session->authHashAlg, &key.b);
     //  Add cpHash
     CryptDigestUpdate2B(&hmacState.hashState,
 			&ComputeCpHash(command, session->authHashAlg)->b);
     //  Add nonces as required
+	printf("Nonce Caller %d\n", s_nonceCaller[sessionIndex].b.size);
+    TPM2_PrintBin(s_nonceCaller[sessionIndex].b.buffer,s_nonceCaller[sessionIndex].b.size);
     CryptDigestUpdate2B(&hmacState.hashState, &s_nonceCaller[sessionIndex].b);
+	printf("Nonce TPM %d\n", session->nonceTPM.b.size);
+    TPM2_PrintBin(session->nonceTPM.b.buffer, session->nonceTPM.b.size);
     CryptDigestUpdate2B(&hmacState.hashState, &session->nonceTPM.b);
     if(nonceDecrypt != NULL)
 	CryptDigestUpdate2B(&hmacState.hashState, &nonceDecrypt->b);
@@ -832,6 +855,10 @@ ComputeCommandHMAC(
     CryptDigestUpdate(&hmacState.hashState, marshalSize, marshalBuffer);
     // Complete the HMAC computation
     CryptHmacEnd2B(&hmacState, &hmac->b);
+
+	printf("HMAC Auth %x: attrib %x, size %d\n", sessionIndex, s_attributes[sessionIndex], hmac->t.size);
+    TPM2_PrintBin(hmac->t.buffer, hmac->t.size);
+
     return hmac;
 }
 /* 6.4.4.10 CheckSessionHMAC() */
