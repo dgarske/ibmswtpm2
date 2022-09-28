@@ -436,6 +436,45 @@ static TPM_RC ContextIdSessionCreate(
     return TPM_RC_SESSION_HANDLES;
 }
 
+#define LINE_LEN 16
+void TPM2_PrintBin(const unsigned char* buffer, unsigned int length)
+{
+    unsigned int i, sz;
+    char line[(LINE_LEN * 4) + 4], *tmp;
+
+    if (!buffer) {
+        printf("\tNULL");
+        return;
+    }
+
+    while (length > 0) {
+        sz = length;
+        if (sz > LINE_LEN)
+            sz = LINE_LEN;
+
+        tmp = line;
+        tmp += sprintf(tmp, "\t");
+        for (i = 0; i < LINE_LEN; i++) {
+            if (i < length)
+                tmp += sprintf(tmp, "%02x ", buffer[i]);
+            else
+                tmp += sprintf(tmp, "   ");
+        }
+        tmp += sprintf(tmp, "| ");
+        for (i = 0; i < sz; i++) {
+            if (buffer[i] > 31 && buffer[i] < 127)
+                tmp += sprintf(tmp, "%c", buffer[i]);
+            else
+                tmp += sprintf(tmp, ".");
+        }
+        printf("%s\n", line);
+
+        buffer += sz;
+        length -= sz;
+    }
+}
+
+
 //*** SessionCreate()
 //
 //  This function does the detailed work for starting an authorization session.
@@ -552,6 +591,9 @@ SessionCreate(TPM_SE         sessionType,    // IN: the session type
 	    // Concatenate authValue and seed
 	    MemoryConcat2B(&key.b, &seed->b, sizeof(key.t.buffer));
 
+        printf("Session Salt: %d\n", key.t.size);
+        TPM2_PrintBin(key.t.buffer, key.t.size);
+        
 	    // Compute the session key
 	    CryptKDFa(session->authHashAlg,
 		      &key.b,
@@ -562,6 +604,9 @@ SessionCreate(TPM_SE         sessionType,    // IN: the session type
 		      session->sessionKey.t.buffer,
 		      NULL,
 		      FALSE);
+
+        printf("Session Key: %d\n", session->sessionKey.t.size);
+        TPM2_PrintBin(session->sessionKey.t.buffer, session->sessionKey.t.size);
 	}
 
     // Copy the name of the entity that the HMAC session is bound to
