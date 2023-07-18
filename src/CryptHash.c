@@ -312,6 +312,8 @@ void CryptHashImportState(
 	}
 }
 
+extern void TPM2_PrintBin(const unsigned char* buffer, unsigned int length);
+
 //** State Modification Functions
 
 //***HashEnd()
@@ -337,6 +339,9 @@ static UINT16 HashEnd(PHASH_STATE hashState,  // IN: the hash state
 	    // directly.
 #undef HASH_END
 	    memcpy(dOut, &temp, dOutSize);
+
+		printf("Hash End %d\n", dOutSize);
+        TPM2_PrintBin(dOut, dOutSize);
 	}
     hashState->type = HASH_STATE_EMPTY;
     return (UINT16)dOutSize;
@@ -393,8 +398,12 @@ void CryptDigestUpdate(PHASH_STATE hashState,  // IN: the hash context informati
     if(hashState->hashAlg != TPM_ALG_NULL)
 	{
 	    if((hashState->type == HASH_STATE_HASH)
-	       || (hashState->type == HASH_STATE_HMAC))
-		HASH_DATA(hashState, dataSize, (BYTE*)data);
+	       || (hashState->type == HASH_STATE_HMAC)) {
+			printf("Hash Data %d\n", dataSize);
+			TPM2_PrintBin(data, dataSize);
+
+			HASH_DATA(hashState, dataSize, (BYTE *)data);
+		}
 #if SMAC_IMPLEMENTED
 	    else if(hashState->type == HASH_STATE_SMAC)
 		(hashState->state.smac.smacMethods.data)(
@@ -420,7 +429,11 @@ LIB_EXPORT UINT16 CryptHashEnd(PHASH_STATE hashState,  // IN: the state of hash 
 			       )
 {
     pAssert(hashState->type == HASH_STATE_HASH);
-    return HashEnd(hashState, dOutSize, dOut);
+    UINT16 ret = HashEnd(hashState, dOutSize, dOut);
+
+	printf("Hash End %d\n", dOutSize);
+	TPM2_PrintBin(dOut, dOutSize);
+	return ret;
 }
 
 //*** CryptHashBlock()
@@ -556,6 +569,9 @@ LIB_EXPORT UINT16 CryptHmacStart(PHMAC_STATE state,    // IN/OUT: the state buff
     state->hashState.hashAlg = hashAlg;
     // Set the hash state type
     state->hashState.type = HASH_STATE_HMAC;
+
+	printf("HMAC Start Key %d\n", state->hmacKey.t.size);
+	TPM2_PrintBin(state->hmacKey.t.buffer, state->hmacKey.t.size);
 
     return hashDef->digestSize;
 }
@@ -757,8 +773,11 @@ LIB_EXPORT UINT16 CryptKDFa(
 	    CryptDigestUpdateInt(&hState.hashState, 4, counter);
 
 	    // Adding label
-	    if(label != NULL)
-		HASH_DATA(&hState.hashState, label->size, (BYTE*)label->buffer);
+	    if(label != NULL) {
+			printf("Hash Data label %d\n", label->size);
+			TPM2_PrintBin(label->buffer, label->size);
+			HASH_DATA(&hState.hashState, label->size, (BYTE *)label->buffer);
+		}
 	    // Add a null. SP108 is not very clear about when the 0 is needed but to
 	    // make this like the previous version that did not add an 0x00 after
 	    // a null-terminated string, this version will only add a null byte
@@ -768,11 +787,18 @@ LIB_EXPORT UINT16 CryptKDFa(
 	       || (label->buffer[label->size - 1] != 0))
 		CryptDigestUpdateInt(&hState.hashState, 1, 0);
 	    // Adding contextU
-	    if(contextU != NULL)
-		HASH_DATA(&hState.hashState, contextU->size, contextU->buffer);
+	    if(contextU != NULL) {
+			printf("Hash Data contextU %d\n", contextU->size);
+			TPM2_PrintBin(contextU->buffer, contextU->size);
+			HASH_DATA(&hState.hashState, contextU->size, contextU->buffer);
+		}
 	    // Adding contextV
-	    if(contextV != NULL)
-		HASH_DATA(&hState.hashState, contextV->size, contextV->buffer);
+	    if(contextV != NULL) {
+			printf("Hash Data contextV %d\n", contextV->size);
+			TPM2_PrintBin(contextV->buffer, contextV->size);
+
+			HASH_DATA(&hState.hashState, contextV->size, contextV->buffer);
+		}
 	    // Adding size in bits
 	    CryptDigestUpdateInt(&hState.hashState, 4, sizeInBits);
 

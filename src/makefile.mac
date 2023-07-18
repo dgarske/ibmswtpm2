@@ -49,16 +49,16 @@ CCFLAGS =				\
 	-D_POSIX_			\
 	-I../utils			\
 	-I.				\
-	-I/usr/local/Cellar/openssl/1.0.2m/include/
+	-I/usr/local/Cellar/openssl@1.1/1.1.1u/include
 
-# another user suggested 
+# another user suggested
 #	-I/opt/local/include		\
 
 LNFLAGS = -ggdb 			\
 	-DTPM_POSIX			\
 	-lcrypto			\
 	-lpthread			\
-	-L/usr/local/Cellar/openssl/1.0.2m/lib	\
+	-L/usr/local/Cellar/openssl@1.1/1.1.1u/lib	\
 	-I.
 
 all:	tpm_server
@@ -77,7 +77,7 @@ TcpServerPosix.o	: $(HEADERS)
 tpm_server:	$(OBJFILES)
 		$(CC) $(OBJFILES) $(LNFLAGS) -o tpm_server
 
-clean:		
+clean:
 		rm -f *.o tpm_server *~
 
 %.o:		%.c
