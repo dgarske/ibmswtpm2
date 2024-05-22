@@ -1034,8 +1034,16 @@ static TPM_RC CheckPolicyAuthSession(
     // Get authPolicy.
     policyAlg = EntityGetAuthPolicy(s_associatedHandles[sessionIndex], &authPolicy);
     // Compare authPolicy.
-    if(!MemoryEqual2B(&session->u2.policyDigest.b, &authPolicy.b))
-	return TPM_RC_POLICY_FAIL;
+	printf("CheckPolicyAuthSession: policyDigest %d\n", session->u2.policyDigest.b.size);
+	TPM2_PrintBin(session->u2.policyDigest.b.buffer, session->u2.policyDigest.b.size);
+
+	printf("CheckPolicyAuthSession: authPolicy %d\n", authPolicy.b.size);
+	TPM2_PrintBin(authPolicy.b.buffer, authPolicy.b.size);
+
+    if(!MemoryEqual2B(&session->u2.policyDigest.b, &authPolicy.b)) {
+		printf("CheckPolicyAuthSession Failed!!\n");
+		return TPM_RC_POLICY_FAIL;
+	}
     // Policy is OK so check if the other factors are correct
 
     // Compare policy hash algorithm.
@@ -1449,6 +1457,7 @@ static TPM_RC CheckAuthSession(
     // Policy or HMAC+PW?
     if(sessionHandleType != TPM_HT_POLICY_SESSION)
 	{
+		printf("Session %d: HMAC+PW\n", sessionIndex);
 	    // for non-policy session make sure that a policy session is not required
 	    if(IsPolicySessionRequired(command->index, sessionIndex))
 		return TPM_RC_AUTH_TYPE;
@@ -1460,6 +1469,7 @@ static TPM_RC CheckAuthSession(
 	}
     else
 	{
+		printf("Session %d: Policy\n", sessionIndex);
 	    // ... see if the entity has a policy, ...
 	    // Note: IsAuthPolicyAvalable will return FALSE if the sensitive area of the
 	    // object is not loaded
